@@ -16,7 +16,6 @@ def mouse():
 
     reducedFrame = 100
     smoothening = 6
-    global plocX,plocY
     plocX, plocY = 0, 0
 
     # holdFlag =0
@@ -147,10 +146,6 @@ def mouse():
         cv2.imshow("2", frame)
         org = cv2.flip(cv2.resize(org, (600, 300)), 1)
         cv2.imshow("1", org)
-        if cv2.waitKey(1) == ord('q'):
+        if cv2.waitKey(5) & 0xFF == 27:
             break
     cap.release()
-    cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    mouse()
