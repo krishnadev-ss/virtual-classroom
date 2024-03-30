@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import webbrowser
 import os
 import subprocess
 import test2 as tm
