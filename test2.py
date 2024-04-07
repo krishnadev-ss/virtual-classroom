@@ -107,10 +107,9 @@ def mouse():
 
         elif len(cords) == 2:
             if (isTouching(cords[0], cords[1])):
-                if cords[0] == thumb:  # check if one of the oneper finger is thumb
+                if cords[0] == thumb:  # check if one of the one per finger is thumb
                     if cords[1] == index:  # check if another is index
                         caseLeft()  # right button
-
                     else:
                         pass
                 elif cords[0] == index:  # check if one of the oneper finger is index
@@ -147,6 +146,7 @@ def mouse():
         cv2.imshow("2", frame)
         org = cv2.flip(cv2.resize(org, (600, 300)), 1)
         cv2.imshow("1", org)
+
         if cv2.waitKey(1) == ord('q'):
             break
     cap.release()

@@ -1,151 +1,174 @@
-##Calculations and evaluation of mouse gesture
-import test as hdm
+from cvzone.HandTrackingModule import HandDetector
 import cv2
+import os
 import numpy as np
-import math
-import autopy
-import time
+from pdf2image import convert_from_path
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
 
 
-def mouse():
+def screat():
+    root = Tk()
+
+
+    root.withdraw()  # Hide the main window
+    pdf_file_path = askopenfilename(initialdir="/home/krishnadev/Downloads", title="Select PDF File",
+                                    filetypes=(("PDF files", "*.pdf"), ("all files", "*.*")))
+    root.destroy()  # Close the Tkinter window
+
+    if not pdf_file_path:
+        print("No PDF file selected.")
+        quit()
+    # Parameters
+    width, height = 1280, 720
+    gestureThreshold = 300
+
+    images = convert_from_path(pdf_file_path)
+    output_folder = "/home/krishnadev/Downloads/new/"
+    for i in range(len(images)):
+        # Save pages as images in the pdf
+        images[i].save(output_folder +  str(i + 1) + '.jpg', 'JPEG')
+
+    folderPath = "/home/krishnadev/Downloads/new/"
+
+    # Camera Setup
     cap = cv2.VideoCapture(0)
-    cap.set(3, 960)  # camera resolution,values should be same in interpolation
-    cap.set(4, 540)
+    cap.set(3, width)
+    cap.set(4, height)
 
-    holdFlag = "Off"
+    # Hand Detector
+    detectorHand = HandDetector(detectionCon=0.8, maxHands=1)
 
-    reducedFrame = 100
-    smoothening = 6
-    plocX, plocY = 0, 0
+    # Variables
+    imgList = []
+    delay = 30
+    buttonPressed = False
+    counter = 0
+    drawMode = False
+    imgNumber = 0
+    delayCounter = 0
+    annotations = [[]]
+    annotationNumber = -1
+    annotationStart = False
+    hs, ws = int(120 * 1), int(213 * 1)  # width and height of small image
 
-    # holdFlag =0
+    # Get list of presentation images
+    # Sort the filenames based on numeric values
+    pathImages = sorted(os.listdir(folderPath), key=lambda x: int(x.split('.')[0]))
 
-    screenW, screenH = autopy.screen.size()
-
-    def isTouching(p0, p1):
-        dist = math.sqrt(pow(p0[0] - p1[0], 2) + pow(p0[1] - p1[1], 2))
-        # print(dist) #distance deeps below 25 if its touching, above 25 is open for both thumb-index, index-middle
-        if dist < 35:
-            return 1
-        else:
-            # return dist
-            return 0
-
-    def caseMovement(frame, x1, y1):
-        for i in range(0, len(cords)):
-            frame = cv2.circle(frame, cords[i], 5, (0, 255, 0), 2)
-        # Convert Coordinates
-        x3 = np.interp(x1, (reducedFrame + 30, 960 - reducedFrame - 30), (
-        0, screenW))  # np.interplot maps one range to another desired range, point, original range, desired range
-        y3 = np.interp(y1, (reducedFrame - 80, 540 - reducedFrame - 130), (0, screenH))
-
-        # MOve Mouse
-        if x3 < screenW:
-            if y3 < screenH:
-                pass
-            else:
-                y3 = screenH - 1
-        else:
-            if y3 <= screenH:
-                x3 = screenW - 1
-            else:
-                y3, x3 = screenH - 1, screenW - 1
-        global plocY, plocX
-        x3 = plocX + (x3 - plocX) / smoothening
-        y3 = plocY + (y3 - plocY) / smoothening
-
-        try:
-            autopy.mouse.move(x3, y3)
-        except:
-            print("points out of bounds : ", x3, y3)
-
-        plocX, plocY = x3, y3
-
-    def caseLeft():
-        autopy.mouse.click(autopy.mouse.Button.LEFT, delay=None)
-
-    def caseRight():
-        autopy.mouse.click(autopy.mouse.Button.RIGHT, delay=None)
-
-    def leftToggleOn(frame, x, y):
-        print("holding : implement toggle")
-        autopy.mouse.toggle(autopy.mouse.Button.LEFT, True)
-        caseMovement(frame, x, y)
-
-    def leftToggleOff():
-        print("not holding : implement toggle off")
-        autopy.mouse.toggle(autopy.mouse.Button.LEFT, False)
-
-    def caseDefault(frame):
-        for i in range(0, len(cords)):
-            frame = cv2.circle(frame, cords[i], 5, (0, 0, 255), 2)
+    print(pathImages)
 
     while True:
-        _, frame = cap.read()
-        org = frame.copy()
-        x, y, frame = hdm.detectHand(frame)
-        cords = hdm.detectCase(x, y)
-        print(len(cords))
-        print(cords)
+        # Get image frame
+        success, img = cap.read()
+        img = cv2.flip(img, 1)
+        pathFullImage = os.path.join(folderPath, pathImages[imgNumber])
+        imgCurrent = cv2.imread(pathFullImage)
 
-        if len(x) == 21:
-            thumb, index, middle, ring, pinky = (x[4], y[4]), (x[8], y[8]), (x[12], y[12]), (x[16], y[16]), (
-            x[20], y[20])
+        # Find the hand and its landmarks
+        hands, img = detectorHand.findHands(img)  # with draw
+        # Draw Gesture Threshold line
+        cv2.line(img, (0, gestureThreshold), (width, gestureThreshold), (0, 255, 0), 10)
 
-        cv2.rectangle(frame, (reducedFrame + 30, reducedFrame - 80),
-                      (960 - reducedFrame - 30, 540 - reducedFrame - 130), (255, 255, 0), 1)  # -
+        if hands and buttonPressed is False:  # If hand is detected
 
-        if len(cords) != 3 and holdFlag == "On":
-            leftToggleOff()
+            hand = hands[0]
+            cx, cy = hand["center"]
+            lmList = hand["lmList"]  # List of 21 Landmark points
+            fingers = detectorHand.fingersUp(hand)  # List of which fingers are up
 
-        if len(cords) == 1:
-            x1, y1 = float(cords[0][0]), float(cords[0][1])
-            caseMovement(frame, x1, y1)
-            # print("size ",autopy.screen.size())
-            # print("scale ",autopy.screen.scale())
+            # Constrain values for easier drawing
+            xVal = int(np.interp(lmList[8][0], [0, width], [0, width]))
+            yVal = int(np.interp(lmList[8][1], [0, height], [0, height]))  # Include entire height
+            indexFinger = xVal, yVal
 
-        elif len(cords) == 2:
-            if (isTouching(cords[0], cords[1])):
-                if cords[0] == thumb:  # check if one of the oneper finger is thumb
-                    if cords[1] == index:  # check if another is index
-                        caseLeft()  # right button
+            if cy <= gestureThreshold:  # If hand is at the height of the face
+                if fingers == [1, 0, 0, 0, 0]:
+                    print("Left")
+                    buttonPressed = True
+                    if imgNumber > 0:
+                        imgNumber -= 1
+                        annotations = [[]]
+                        annotationNumber = -1
+                        annotationStart = False
+                if fingers == [0, 0, 0, 0, 1]:
+                    print("Right")
+                    buttonPressed = True
+                    if imgNumber < len(pathImages) - 1:
+                        imgNumber += 1
+                        annotations = [[]]
+                        annotationNumber = -1
+                        annotationStart = False
 
-                    else:
-                        pass
-                elif cords[0] == index:  # check if one of the oneper finger is index
-                    if cords[1] == middle:  # check if another is middle
-                        caseRight()  # left button
-                        # time.sleep()
-                    else:
-                        caseMovement(frame, cords[0][0], cords[0][1])
-                else:
-                    caseDefault(frame)
+            if fingers == [0, 1, 1, 0, 0]:
+                cv2.circle(imgCurrent, indexFinger, 12, (0, 0, 255), cv2.FILLED)
+
+            if fingers == [0, 1, 0, 0, 0]:
+                if annotationStart is False:
+                    annotationStart = True
+                    annotationNumber += 1
+                    annotations.append([])
+                print(annotationNumber)
+                annotations[annotationNumber].append(indexFinger)
+                cv2.circle(imgCurrent, indexFinger, 12, (0, 0, 255), cv2.FILLED)
+
 
             else:
-                x1, y1 = float(x[8]), float(y[8])  # if thumb and index are open, then thumb would be at 0 iundex hence
-                caseMovement(frame, x1, y1)
+                annotationStart = False
 
-        elif len(cords) == 3:
-            print("entered loop")
-            if cords[0] == index and cords[1] == middle and cords[2] == ring:
-                print("left toggle  on")
-                holdFlag = "On"
-                leftToggleOn(frame, cords[0][0], cords[0][1])
+            if fingers == [0, 1, 1, 1, 0]:
+                if annotations:
+                    annotations.pop(-1)
+                    annotationNumber -= 1
+                    buttonPressed = True
 
         else:
-            caseDefault(frame)
+            annotationStart = False
 
-        # cv2.putText(frame, str(int(instance)), (20, 50), cv2.FONT_HERSHEY_PLAIN, 3,
-        #           (255, 0, 0), 3)
+        if buttonPressed:
+            counter += 1
+            if counter > delay:
+                counter = 0
+                buttonPressed = False
 
-        # x,y,z = hdm.detectCase()
-        # print("x : ",x,"y : ",y,"z : ",z)
-        # dump1, dump2  = hdm.detectCase(x,y)
-        # frame = cv2.circle(cv2.circle(frame,dump2,5,(0,0,255),2),(dump1),5,(0,0,255),2)
-        # cv2.resize(frame, (640, 480))
-        cv2.imshow("2", frame)
-        org = cv2.flip(cv2.resize(org, (600, 300)), 1)
-        cv2.imshow("1", org)
-        if cv2.waitKey(5) & 0xFF == 27:
+        for i, annotation in enumerate(annotations):
+            for j in range(len(annotation)):
+                if j != 0:
+                    cv2.line(imgCurrent, annotation[j - 1], annotation[j], (0, 0, 200), 12)
+
+        # Resize the image to fit within the screen
+        screen_width = 1280  # Define your desired screen width
+        screen_height = 720  # Define your desired screen height
+
+        aspect_ratio = screen_width / screen_height
+        imgCurrent_height, imgCurrent_width, _ = imgCurrent.shape
+        imgCurrent_aspect_ratio = imgCurrent_width / imgCurrent_height
+
+        if imgCurrent_aspect_ratio > aspect_ratio:
+            # Image is wider, fit to width
+            new_width = screen_width
+            new_height = int(screen_width / imgCurrent_aspect_ratio)
+        else:
+            # Image is taller or square, fit to height
+            new_height = screen_height
+            new_width = int(screen_height * imgCurrent_aspect_ratio)
+
+        # Resize the image
+        imgCurrent_resized = cv2.resize(imgCurrent, (new_width, new_height))
+
+        # Place the resized image on the right side of a blank screen
+        blank_screen = np.zeros((screen_height, screen_width, 3), dtype=np.uint8)
+        blank_screen[0:new_height, 0:new_width] = imgCurrent_resized
+
+        # Display the image
+        cv2.imshow("Slides", blank_screen)
+
+        #cv2.imshow("Slides", imgCurrent)
+        cv2.imshow("Image", img)
+
+        key = cv2.waitKey(1)
+        if key == ord('q'):
             break
-    cap.release()
+
+if __name__ == "__main__":
+    screat()
