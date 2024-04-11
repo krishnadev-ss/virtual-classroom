@@ -5,7 +5,7 @@ from tkinter import messagebox
 import subprocess
 
 def display_screenshots():
-    screenshots_folder = "/home/krishnadev/Pictures/Screenshots"
+    screenshots_folder = "/home/krishnadev/Pictures"
 
     # Check if the folder exists
     if os.path.isdir(screenshots_folder):

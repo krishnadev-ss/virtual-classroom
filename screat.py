@@ -5,9 +5,33 @@ import numpy as np
 from pdf2image import convert_from_path
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
+import datetime
 
+def save_image(img, folderPath, imgNumber, pathImages):
+    """Saves the current image with annotations to the specified folder.
 
+    Args:
+        img: The image to be saved (including annotations).
+        folderPath: The path to the folder where the image will be saved.
+        imgNumber: The index of the current image in the presentation.
+        pathImages: The list of image filenames in the presentation.
+
+    Returns:
+        None
+    """
+
+    # Generate unique filename with timestamp
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    full_path = os.path.join(folderPath, pathImages[imgNumber])  # Full path of the image
+
+    try:
+        # Save the current image (overwriting the existing file)
+        cv2.imwrite(full_path, img)
+        print(f"Image overwritten successfully: {full_path}")
+    except Exception as e:
+        print(f"Error overwriting image: {e}")
 def screat():
+
     root = Tk()
 
 
@@ -21,7 +45,7 @@ def screat():
         quit()
     # Parameters
     width, height = 1280, 720
-    gestureThreshold = 300
+    gestureThreshold = 500
 
     images = convert_from_path(pdf_file_path)
     output_folder = "/home/krishnadev/Downloads/new/"
@@ -30,6 +54,7 @@ def screat():
         images[i].save(output_folder +  str(i + 1) + '.jpg', 'JPEG')
 
     folderPath = "/home/krishnadev/Downloads/new/"
+    #folderPath = "/home/krishnadev/Pictures"
 
     # Camera Setup
     cap = cv2.VideoCapture(0)
@@ -47,23 +72,25 @@ def screat():
     drawMode = False
     imgNumber = 0
     delayCounter = 0
-    annotations = [[]]
+    annotations = []  # List of lists to store annotations for each gesture
     annotationNumber = -1
     annotationStart = False
     hs, ws = int(120 * 1), int(213 * 1)  # width and height of small image
 
     # Get list of presentation images
-    # Sort the filenames based on numeric values
     pathImages = sorted(os.listdir(folderPath), key=lambda x: int(x.split('.')[0]))
-
     print(pathImages)
+    prev_x, prev_y = None, None
 
     while True:
         # Get image frame
         success, img = cap.read()
         img = cv2.flip(img, 1)
         pathFullImage = os.path.join(folderPath, pathImages[imgNumber])
-        imgCurrent = cv2.imread(pathFullImage)
+        imgCurrent = cv2.imread(pathFullImage, cv2.IMREAD_UNCHANGED)  # Read as-is for aspect ratio preservation
+        new_width = 1280  # Define your desired screen width
+        new_height = int(imgCurrent.shape[0] * (new_width / imgCurrent.shape[1]))  # Maintain aspect ratio
+        imgCurrent = cv2.resize(imgCurrent, (new_width, new_height))
 
         # Find the hand and its landmarks
         hands, img = detectorHand.findHands(img)  # with draw
@@ -78,9 +105,9 @@ def screat():
             fingers = detectorHand.fingersUp(hand)  # List of which fingers are up
 
             # Constrain values for easier drawing
-            xVal = int(np.interp(lmList[8][0], [0, width], [0, width]))
-            yVal = int(np.interp(lmList[8][1], [0, height], [0, height]))  # Include entire height
-            indexFinger = xVal, yVal
+            xVal = int(np.interp(lmList[8][0], [width // 2, width], [0, width]))
+            yVal = int(np.interp(lmList[8][1], [150, height-150], [0, height]))
+            indexFinger = (cx, cy)
 
             if cy <= gestureThreshold:  # If hand is at the height of the face
                 if fingers == [1, 0, 0, 0, 0]:
@@ -90,7 +117,7 @@ def screat():
                         imgNumber -= 1
                         annotations = [[]]
                         annotationNumber = -1
-                        annotationStart = False
+                        annotationStart = False  # Reset annotation for new gesture
                 if fingers == [0, 0, 0, 0, 1]:
                     print("Right")
                     buttonPressed = True
@@ -98,27 +125,28 @@ def screat():
                         imgNumber += 1
                         annotations = [[]]
                         annotationNumber = -1
-                        annotationStart = False
+                        annotationStart = False  # Reset annotation for new gesture
 
             if fingers == [0, 1, 1, 0, 0]:
-                cv2.circle(imgCurrent, indexFinger, 12, (0, 0, 255), cv2.FILLED)
+                cv2.circle(imgCurrent, (cx, cy), 10, (0, 0, 255), cv2.FILLED)
+
+
 
             if fingers == [0, 1, 0, 0, 0]:
                 if annotationStart is False:
                     annotationStart = True
+                    annotations.append([])  # Create a new list for each gesture
                     annotationNumber += 1
-                    annotations.append([])
                 print(annotationNumber)
                 annotations[annotationNumber].append(indexFinger)
-                cv2.circle(imgCurrent, indexFinger, 12, (0, 0, 255), cv2.FILLED)
-
+                cv2.circle(imgCurrent, indexFinger, 10, (0, 0, 255), cv2.FILLED)
 
             else:
                 annotationStart = False
 
-            if fingers == [0, 1, 1, 1, 0]:
+            if fingers == [1, 1, 1, 1, 1]:
                 if annotations:
-                    annotations.pop(-1)
+                    annotations.pop()  # Remove the last list for the current gesture
                     annotationNumber -= 1
                     buttonPressed = True
 
@@ -131,44 +159,27 @@ def screat():
                 counter = 0
                 buttonPressed = False
 
-        for i, annotation in enumerate(annotations):
-            for j in range(len(annotation)):
-                if j != 0:
-                    cv2.line(imgCurrent, annotation[j - 1], annotation[j], (0, 0, 200), 12)
+        # Draw lines for smooth drawing
+        for gesture in annotations:
+            if len(gesture) > 1:
+                for i in range(len(gesture) - 1):
+                    cv2.line(imgCurrent, gesture[i], gesture[i + 1], (0, 0, 200), 10)
 
-        # Resize the image to fit within the screen
-        screen_width = 1280  # Define your desired screen width
-        screen_height = 720  # Define your desired screen height
+        imgSmall = cv2.resize(img, (ws, hs))
+        h, w, _ = imgCurrent.shape
+        imgCurrent[0:hs, w - ws: w] = imgSmall
 
-        aspect_ratio = screen_width / screen_height
-        imgCurrent_height, imgCurrent_width, _ = imgCurrent.shape
-        imgCurrent_aspect_ratio = imgCurrent_width / imgCurrent_height
-
-        if imgCurrent_aspect_ratio > aspect_ratio:
-            # Image is wider, fit to width
-            new_width = screen_width
-            new_height = int(screen_width / imgCurrent_aspect_ratio)
-        else:
-            # Image is taller or square, fit to height
-            new_height = screen_height
-            new_width = int(screen_height * imgCurrent_aspect_ratio)
-
-        # Resize the image
-        imgCurrent_resized = cv2.resize(imgCurrent, (new_width, new_height))
-
-        # Place the resized image on the right side of a blank screen
-        blank_screen = np.zeros((screen_height, screen_width, 3), dtype=np.uint8)
-        blank_screen[0:new_height, 0:new_width] = imgCurrent_resized
-
-        # Display the image
-        cv2.imshow("Slides", blank_screen)
-
-        #cv2.imshow("Slides", imgCurrent)
+        cv2.imshow("Slides", imgCurrent)
         cv2.imshow("Image", img)
 
         key = cv2.waitKey(1)
-        if key == ord('q'):
+        if key == ord('s'):
+            save_image(imgCurrent, folderPath, imgNumber, pathImages)
+        elif key == ord('q'):
             break
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     screat()

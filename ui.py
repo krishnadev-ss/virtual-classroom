@@ -4,6 +4,9 @@ import os
 import subprocess
 import test2 as tm
 import screenshot as ss
+import canva as cs
+
+
 
 # Function to open the main page
 def open_main_page():
@@ -31,6 +34,11 @@ def open_main_ui():
     def open_whiteboard():
         # Replace this with your code to open the AI whiteboard
         print("Opening AI Whiteboard")
+        try:
+            cs.canva()
+            print("Running test2.py in the background...")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to run canva.py: {str(e)}")
 
     # Function to open the mouse controller
     def open_mouse_controller():

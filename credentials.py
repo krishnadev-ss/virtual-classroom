@@ -1,6 +1,7 @@
-
 import tkinter as tk
 from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
+
 import os
 import subprocess
 import test2 as tm
@@ -8,10 +9,6 @@ import screenshot as ss
 import canva as cs
 import screenshot as ss
 import screat as ld
-
-import sys
-import os
-
 
 # Now you can import inferenceModel.py
 # Function to open the main page
@@ -24,7 +21,20 @@ def open_main_ui():
     # Create the main window
     root = tk.Tk()
     root.title("CamBoard")
-    root.configure(bg="#3E3232")
+    root.configure(bg="#000000")
+
+    # Get screen width and height
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    # Set main UI size and position
+    window_width = int(screen_width )
+    window_height = int(screen_height)
+    x_position = int((screen_width - window_width) / 2)
+    y_position = int((screen_height - window_height) / 2)
+    root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
+
+
 
     # Function to open the AI whiteboard
     def open_whiteboard():
@@ -57,7 +67,6 @@ def open_main_ui():
         # Replace this with your code to open OCR detection and select an image
         print("Opening OCR Detection")
 
-
     def load_app():
         print("Loading App")
 
@@ -79,14 +88,13 @@ def open_main_ui():
     btn_aaa_bbbb = ttk.Button(root, text="PDF READER", command=load_app, width=30)
     btn_quit = ttk.Button(root, text="Quit", command=quit_app, width=40)
 
-    # Arrange buttons in a vertical layout
-    btn_whiteboard.grid(row=1, column=0, padx=40, pady=40)
-    btn_mouse_controller.grid(row=1, column=1, padx=40, pady=40)
-    btn_screenshots.grid(row=1, column=2, padx=40, pady=40)
-    btn_ocr_detection.grid(row=3, column=0, columnspan=2, padx=40, pady=40)
-    btn_aaa_bbbb.grid(row=3, column=1,columnspan=4, padx=40, pady=40)
-    btn_quit.grid(row=5, column=0, columnspan=4,pady=80 )
-
+    # Arrange buttons using grid
+    btn_whiteboard.grid(row=0, column=0, padx=40, pady=20)
+    btn_mouse_controller.grid(row=0, column=1, padx=40, pady=20)
+    btn_screenshots.grid(row=0, column=2, padx=40, pady=20)
+    btn_ocr_detection.grid(row=1, column=0, padx=40, pady=20)
+    btn_aaa_bbbb.grid(row=1, column=1, padx=40, pady=20)
+    btn_quit.grid(row=2, column=0, columnspan=3, padx=40, pady=40)
 
     # Run the main event loop for the main UI
     root.mainloop()
@@ -97,7 +105,7 @@ def open_landing_page():
     # Create the landing page window
     landing_page = tk.Tk()
     landing_page.title("Camboard - Landing Page")
-    landing_page.configure(bg="#3E3232")
+    landing_page.configure(bg="#000000")
 
     # Function to open the main page when button is clicked
     def enter_camboard():
@@ -123,9 +131,28 @@ def open_landing_page():
 
     landing_page.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
 
+    # Add the image to the landing page
+    image_path = "/home/krishnadev/Downloads/cam.png"  # Path to your image file
+    if os.path.exists(image_path):
+        # Load the image
+        image = Image.open(image_path)
+
+        # Resize the image as needed
+        image = image.resize((1900, 1000), Image.ANTIALIAS)
+
+        # Create PhotoImage object from the image
+        img = ImageTk.PhotoImage(image)
+
+        # Create a label to display the image
+        lbl_image = tk.Label(landing_page, image=img)
+        lbl_image.image = img  # Keep a reference to the image to prevent garbage collection
+        lbl_image.pack(pady=20)
+
+    else:
+        messagebox.showerror("Error", "Image file not found.")
+
     # Run the main event loop for the landing page
     landing_page.mainloop()
-
 # Function to open the window displaying the list of files in Downloads
 def open_downloads_list():
     downloads_window = tk.Tk()

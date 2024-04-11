@@ -6,7 +6,6 @@ import math
 import autopy
 import time
 
-
 def mouse():
     cap = cv2.VideoCapture(0)
     cap.set(3, 960)  # camera resolution,values should be same in interpolation
@@ -15,7 +14,7 @@ def mouse():
     holdFlag = "Off"
 
     reducedFrame = 100
-    smoothening = 6
+    smoothening = 8
     global plocX,plocY
     plocX, plocY = 0, 0
 
